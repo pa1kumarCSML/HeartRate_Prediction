@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from scipy.signal import butter, lfilter
+
 def normalize_channel(channel):
     return channel / np.mean(channel)
 
@@ -28,40 +29,52 @@ def calculate_pulse_signal(R, G, B):
     Gn = normalize_channel(G)
     Bn = normalize_channel(B)
 
-    # Rs =  Gs = 0.5121Gn Bs = 0.3841Bn .
-    # Rs = 0.7682*Rn
-    # Gs = 0.5121*Gn
-    # Bs = 0.3841*Bn
-
-    Xs = 3*Rn - 2*Gn
-    Ys = 1.5*Rn + Gn - 1.5*Bn
+    Xs = 3 * Rn - 2 * Gn
+    Ys = 1.5 * Rn + Gn - 1.5 * Bn
 
     sampling_rate = 1000  # Placeholder value, replace with actual value
     low_cutoff = 0.5  # Placeholder value, replace with actual value
     high_cutoff = 3.0  # Placeholder value, replace with actual value
 
-    # Xs = 3 * Rs - 2 * Gs
-    # Ys = 1.5 * Rs + Gs - 1.5 * Bs
-
     S_refined = calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
     return S_refined
 
-# Read the image
-image = cv2.imread('images/leo1.jpg')
+# Open a video file
+video_path = 'videos/TCS.mp4'
+cap = cv2.VideoCapture(video_path)
 
-# Check if the image has 3 channels (R, G, B)
-if image.shape[-1] != 3:
-    raise ValueError("The image should have 3 color channels (R, G, B)")
+# Check if the video is successfully opened
+if not cap.isOpened():
+    print("Error: Could not open video.")
+    exit()
 
-# Extract R, G, B channels
-R, G, B = cv2.split(image)
+while True:
+    # Read a frame from the video
+    ret, frame = cap.read()
 
-# Apply the algorithm
-pulse_signal = calculate_pulse_signal(R, G, B)
+    # If the frame is not read successfully, break the loop
+    if not ret:
+        break
 
-# Display the original image and the calculated pulse signal
-cv2.imshow('Original Image', image)
-cv2.imshow('Pulse Signal', pulse_signal)
-cv2.waitKey(0)
+    # Check if the frame has 3 channels (R, G, B)
+    if frame.shape[-1] != 3:
+        raise ValueError("The frame should have 3 color channels (R, G, B)")
+
+    # Extract R, G, B channels
+    R, G, B = cv2.split(frame)
+
+    # Apply the algorithm
+    pulse_signal = calculate_pulse_signal(R, G, B)
+
+    # Display the original frame and the calculated pulse signal
+    cv2.imshow('Original Frame', frame)
+    cv2.imshow('Pulse Signal', pulse_signal)
+
+    # Break the loop if the 'q' key is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the video capture object and close all windows
+cap.release()
 cv2.destroyAllWindows()
