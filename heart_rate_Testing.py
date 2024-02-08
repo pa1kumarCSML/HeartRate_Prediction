@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 from scipy.signal import butter, lfilter
 
-
+# Load the pre-trained face detection classifier
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 def calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
     Xf = bandpass_filter(Xs, low_cutoff, high_cutoff, sampling_rate)
@@ -19,7 +20,7 @@ def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     filtered_signal = lfilter(b, a, signal)
     return filtered_signal
 
-def calculate_pulse_signal(R, G, B):
+def calculate_pulse_signal(R, G, B, sampling_rate):
     Rn = R / np.mean(R)
     Gn = G / np.mean(G)
     Bn = B / np.mean(B)
@@ -27,7 +28,6 @@ def calculate_pulse_signal(R, G, B):
     Xs = 3 * Rn - 2 * Gn
     Ys = 1.5 * Rn + Gn - 1.5 * Bn
 
-    sampling_rate = 1000  # Placeholder value, replace with actual value
     low_cutoff = 0.5  # Placeholder value, replace with actual value
     high_cutoff = 3.0  # Placeholder value, replace with actual value
 
@@ -52,19 +52,31 @@ while True:
     if not ret:
         break
 
-    # Check if the frame has 3 channels (R, G, B)
-    if frame.shape[-1] != 3:
-        raise ValueError("The frame should have 3 color channels (R, G, B)")
+    # Convert the frame to grayscale for face detection
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # Extract R, G, B channels
-    R, G, B = cv2.split(frame)
+    # Detect faces in the frame
+    faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.3, minNeighbors=5)
 
-    # Apply the algorithm
-    pulse_signal = calculate_pulse_signal(R, G, B)
+    for (x, y, w, h) in faces:
+        # Extract face region
+        face_roi = frame[y:y+h, x:x+w]
 
-    # Display the original frame and the calculated pulse signal
-    cv2.imshow('Original Frame', frame)
-    cv2.imshow('Pulse Signal', pulse_signal)
+        # Check if the face region has 3 channels (R, G, B)
+        if face_roi.shape[-1] != 3:
+            raise ValueError("The face region should have 3 color channels (R, G, B)")
+
+        # Extract R, G, B channels from the face region
+        R, G, B = cv2.split(face_roi)
+
+        sampling_rate = 2*cap.get(cv2.CAP_PROP_FPS)
+        # Apply the algorithm
+        pulse_signal = calculate_pulse_signal(R, G, B, sampling_rate)
+
+        # Display the original frame with the face bounding box and the calculated pulse signal
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)  # Draw a blue rectangle around the face
+        cv2.imshow('Original Frame with Face Detection', frame)
+        cv2.imshow('Pulse Signal', pulse_signal)
 
     # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
