@@ -27,9 +27,9 @@ def calculate_pulse_signal(R, G, B):
     Xs = 3 * Rn - 2 * Gn
     Ys = 1.5 * Rn + Gn - 1.5 * Bn
 
-    sampling_rate = 1000  # Placeholder value, replace with actual value
-    low_cutoff = 0.5  # Placeholder value, replace with actual value
-    high_cutoff = 3.0  # Placeholder value, replace with actual value
+    sampling_rate = 1000  
+    low_cutoff = 0.5 
+    high_cutoff = 3.0 
 
     S_refined = calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
