@@ -25,13 +25,15 @@ while True:
         # Predict facial landmarks
         landmarks = predictor(gray, face)
 
-        # Iterate over the 68 facial landmarks
+        # Draw facial landmarks
         for n in range(0, 68):
             x = landmarks.part(n).x
             y = landmarks.part(n).y
-
-            # Draw a circle at each facial landmark
             cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
+
+        # Draw a rectangle around the detected face
+        x, y, w, h = face.left(), face.top(), face.width(), face.height()
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
     # Display the frame with facial landmarks
     cv2.imshow('Facial Landmarks', frame)
