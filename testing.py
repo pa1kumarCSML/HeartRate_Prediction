@@ -2,7 +2,12 @@ import cv2
 import numpy as np
 from scipy.signal import butter, lfilter
 
+def normalize_channel(channel):
+    return channel / np.mean(channel)
 
+def skin_tone_standardization(channel):
+    standardized_channel = channel / np.mean(channel)
+    return standardized_channel
 
 def calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
     Xf = bandpass_filter(Xs, low_cutoff, high_cutoff, sampling_rate)
@@ -19,35 +24,38 @@ def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     filtered_signal = lfilter(b, a, signal)
     return filtered_signal
 
-def calculate_pulse_signal(R, G, B,sampling_rate):
-    Rn = R / np.mean(R)
-    Gn = G / np.mean(G)
-    Bn = B / np.mean(B)
+def calculate_pulse_signal(R, G, B, sampling_rate):
+    Rn = normalize_channel(R)
+    Gn = normalize_channel(G)
+    Bn = normalize_channel(B)
 
     Xs = 3 * Rn - 2 * Gn
     Ys = 1.5 * Rn + Gn - 1.5 * Bn
 
     low_cutoff = 0.6 
-    high_cutoff = 4
+    high_cutoff = 4.0
 
     S_refined = calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
     return S_refined
 
-# Open a video file
+# Read the video
 video_path = 'videos/TCS.mp4'
 cap = cv2.VideoCapture(video_path)
 
-# Check if the video is successfully opened
+# Check if the video opened successfully
 if not cap.isOpened():
-    print("Error: Could not open video.")
+    print("Error: Couldn't open the video.")
     exit()
 
-while True:
-    # Read a frame from the video
+# Get the video properties
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
+# Process each frame
+while cap.isOpened():
     ret, frame = cap.read()
 
-    # If the frame is not read successfully, break the loop
     if not ret:
         break
 
@@ -57,17 +65,15 @@ while True:
 
     # Extract R, G, B channels
     R, G, B = cv2.split(frame)
-    sampling_rate = 1000
-    # Apply the algorithm
-    pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
 
-    # Display the original frame and the calculated pulse signal
+    # Apply the algorithm
+    pulse_signal = calculate_pulse_signal(R, G, B, sampling_rate)
     cv2.imshow('Original Frame', frame)
     cv2.imshow('Pulse Signal', pulse_signal)
 
-    # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+# Release everything if job is finished
 cap.release()
 cv2.destroyAllWindows()
