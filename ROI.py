@@ -6,7 +6,7 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
 # Open the video file
-video_capture = cv2.VideoCapture('videos/TCS.mp4')
+video_capture = cv2.VideoCapture('videos/real/jenny.mp4')
 
 # Process the video frame by frame
 while True:
@@ -33,7 +33,7 @@ while True:
 
         # Draw a rectangle around the detected face
         x, y, w, h = face.left(), face.top(), face.width(), face.height()
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        cv2.rectangle(frame, (x, y), (x + w, y+h), (255, 0, 255), 1)
 
     # Display the frame with facial landmarks
     cv2.imshow('Facial Landmarks', frame)

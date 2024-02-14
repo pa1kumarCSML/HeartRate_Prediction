@@ -1,126 +1,83 @@
 import cv2
 import numpy as np
+from scipy.signal import butter, lfilter
+import dlib
 
-# Define functions for pulse signal extraction process
-def normalize_color_channel(channel):
-    """
-    Normalize color channel by dividing each sample by its mean.
-    """
-    return channel / np.mean(channel)
 
-def roverg_method(green_channel, red_channel):
-    """
-    Calculate pulse signal using RoverG method.
-    """
-    return (green_channel / red_channel) - 1
+def calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
+    Xf = bandpass_filter(Xs, low_cutoff, high_cutoff, sampling_rate)
+    Yf = bandpass_filter(Ys, low_cutoff, high_cutoff, sampling_rate)
+    alpha = np.std(Xf) / np.std(Yf)
+    S_refined = Xf - alpha * Yf
+    return S_refined
 
-def compute_chrominance_signals(red_channel, green_channel, blue_channel):
-    """
-    Compute chrominance signals X and Y.
-    """
-    x = red_channel - green_channel
-    y = 0.5 * red_channel + 0.5 * green_channel - blue_channel
-    return x, y
+def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
+    nyquist = 0.5 * sampling_rate
+    low = low_cutoff / nyquist
+    high = high_cutoff / nyquist
+    b, a = butter(2, [low, high], btype='band')
+    filtered_signal = lfilter(b, a, signal)
+    return filtered_signal
 
-def skin_tone_standardization(red_channel, green_channel, blue_channel):
-    """
-    Perform skin-tone standardization on RGB channels.
-    """
-    # Standard skin-tone values
-    Rs, Gs, Bs = 0.7682, 0.5121, 0.3841
-    # Standardize RGB channels
-    Rs_channel = Rs * red_channel
-    Gs_channel = Gs * green_channel
-    Bs_channel = Bs * blue_channel
-    return Rs_channel, Gs_channel, Bs_channel
+def calculate_pulse_signal(R, G, B,sampling_rate):
+    Rn = R / np.mean(R)
+    Gn = G / np.mean(G)
+    Bn = B / np.mean(B)
 
-def fixed_algorithm(red_channel, green_channel, blue_channel):
-    """
-    Extract pulse signal using fixed algorithm.
-    """
-    # Coefficients for fixed algorithm
-    c1, c2, c3 = 1.5, -3, 1.5
-    return c1 * red_channel + c2 * green_channel + c3 * blue_channel
+    Xs = 3 * Rn - 2 * Gn
+    Ys = 1.5 * Rn + Gn - 1.5 * Bn
 
-def adjust_pulse_signal(Xs, Ys):
-    """
-    Adjust pulse signal based on standard deviations of chrominance signals.
-    """
-    alpha = np.std(Xs) / np.std(Ys)
-    return Xs - alpha * Ys
+    low_cutoff = 0.6 
+    high_cutoff = 4
 
-# Function to process each frame of the video
-def process_frame(frame):
-    # Extract RGB channels from the frame
-    red_channel = frame[:,:,2]
-    green_channel = frame[:,:,1]
-    blue_channel = frame[:,:,0]
-    
-    # Normalize color channels
-    red_normalized = normalize_color_channel(red_channel)
-    green_normalized = normalize_color_channel(green_channel)
-    blue_normalized = normalize_color_channel(blue_channel)
-    
-    # Compute pulse signal using RoverG method
-    pulse_signal_roverg = roverg_method(green_normalized, red_normalized)
-    
-    # Compute chrominance signals X and Y
-    X, Y = compute_chrominance_signals(red_normalized, green_normalized, blue_normalized)
-    
-    # Perform skin-tone standardization
-    Rs_channel, Gs_channel, Bs_channel = skin_tone_standardization(red_normalized, green_normalized, blue_normalized)
-    
-    # Extract pulse signal using fixed algorithm
-    pulse_signal_fixed = fixed_algorithm(Rs_channel, Gs_channel, Bs_channel)
-    
-    # Adjust pulse signal
-    adjusted_pulse_signal = adjust_pulse_signal(X, Y)
-    
-    # Return the processed pulse signal
-    return pulse_signal_roverg, pulse_signal_fixed, adjusted_pulse_signal
+    S_refined = calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
-# Load video file
-video_capture = cv2.VideoCapture('videos/TCS.mp4')
+    return S_refined
 
-# Check if video file opened successfully
-if not video_capture.isOpened():
-    print("Error: Unable to open video file.")
+# Open a video file
+video_path = 'videos/real/jenny.mp4'
+cap = cv2.VideoCapture(video_path)
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
+
+# Check if the video is successfully opened
+if not cap.isOpened():
+    print("Error: Could not open video.")
     exit()
 
-# Read the first frame to get frame dimensions
-ret, frame = video_capture.read()
-if not ret:
-    print("Error: Unable to read the first frame.")
-    exit()
-
-# Define the output video writer
-output_video_writer = cv2.VideoWriter('output_video.mp4', cv2.VideoWriter_fourcc(*'MP4V'), 
-                                      30, (frame.shape[1], frame.shape[0]))
-
-# Process each frame of the video
 while True:
-    # Read a frame
-    ret, frame = video_capture.read()
+    # Read a frame from the video
+    ret, frame = cap.read()
+
+    # If the frame is not read successfully, break the loop
     if not ret:
         break
-    
-    # Process the frame to extract pulse signal
-    pulse_signal_roverg, pulse_signal_fixed, adjusted_pulse_signal = process_frame(frame)
-    
-    # Visualize or store the pulse signal (e.g., plot on the frame)
-    # You can use matplotlib to plot the pulse signal on the frame
-    
-    # Write the frame with pulse signal to the output video
-    output_video_writer.write(frame)
 
-    # Display the frame (optional)
-    cv2.imshow('Pulse Signal Video', frame)
+    # Check if the frame has 3 channels (R, G, B)
+    if frame.shape[-1] != 3:
+        raise ValueError("The frame should have 3 color channels (R, G, B)")
+    
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    # Detect faces in the grayscale frame
+    faces = detector(gray)
+
+    for face in faces:
+        landmarks = predictor(gray, face)
+        x, y, w, h = face.left(), face.top(), face.width(), face.height()
+        cropped_frame = frame[y:y+h, x:x+w]
+        # Extract R, G, B channels
+        R, G, B = cv2.split(cropped_frame)
+        sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
+        # Apply the algorithm
+        pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
+        # Display the original frame and the calculated pulse signal
+        cv2.imshow('Pulse Signal', pulse_signal)
+        cv2.imshow('Original Frame', cropped_frame)
+
+        # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Release video capture and writer objects
-video_capture.release()
-output_video_writer.release()
-
-# Close all OpenCV windows
+cap.release()
 cv2.destroyAllWindows()

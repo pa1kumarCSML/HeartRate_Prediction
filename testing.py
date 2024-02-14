@@ -40,7 +40,7 @@ def calculate_pulse_signal(R, G, B, sampling_rate):
     return S_refined
 
 # Read the video
-video_path = 'videos/TCS.mp4'
+video_path = 'videos/real/TCS.mp4'
 cap = cv2.VideoCapture(video_path)
 
 # Check if the video opened successfully

@@ -49,5 +49,5 @@ def extract_heart_rate(video_path):
     cv2.destroyAllWindows()
 
 # Example usage
-video_path = 'videos/TCS.mp4'
+video_path = 'videos/real/jenny.mp4'
 extract_heart_rate(video_path)

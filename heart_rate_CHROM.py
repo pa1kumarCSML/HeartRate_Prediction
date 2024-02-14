@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from scipy.signal import butter, lfilter
-
+import dlib
 
 
 def calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
@@ -35,8 +35,10 @@ def calculate_pulse_signal(R, G, B,sampling_rate):
     return S_refined
 
 # Open a video file
-video_path = 'videos/TCS.mp4'
+video_path = 'videos/real/jenny.mp4'
 cap = cv2.VideoCapture(video_path)
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
 # Check if the video is successfully opened
 if not cap.isOpened():
@@ -54,18 +56,26 @@ while True:
     # Check if the frame has 3 channels (R, G, B)
     if frame.shape[-1] != 3:
         raise ValueError("The frame should have 3 color channels (R, G, B)")
+    
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # Extract R, G, B channels
-    R, G, B = cv2.split(frame)
-    sampling_rate = 1000
-    # Apply the algorithm
-    pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
+    # Detect faces in the grayscale frame
+    faces = detector(gray)
 
-    # Display the original frame and the calculated pulse signal
-    cv2.imshow('Original Frame', frame)
-    cv2.imshow('Pulse Signal', pulse_signal)
+    for face in faces:
+        landmarks = predictor(gray, face)
+        x, y, w, h = face.left(), face.top(), face.width(), face.height()
+        cropped_frame = frame[y:y+h, x:x+w]
+        # Extract R, G, B channels
+        R, G, B = cv2.split(cropped_frame)
+        sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
+        # Apply the algorithm
+        pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
+        # Display the original frame and the calculated pulse signal
+        cv2.imshow('Pulse Signal', pulse_signal)
+        cv2.imshow('Original Frame', cropped_frame)
 
-    # Break the loop if the 'q' key is pressed
+        # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
