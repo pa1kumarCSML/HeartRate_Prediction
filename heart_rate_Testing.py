@@ -3,8 +3,9 @@ import numpy as np
 from scipy.signal import butter, lfilter
 import dlib
 
-
-def calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
+def calculate_refined_pulse_signal(Xs, Ys,sampling_rate):
+    low_cutoff=0.5
+    high_cutoff=4.1
     Xf = bandpass_filter(Xs, low_cutoff, high_cutoff, sampling_rate)
     Yf = bandpass_filter(Ys, low_cutoff, high_cutoff, sampling_rate)
     alpha = np.std(Xf) / np.std(Yf)
@@ -12,31 +13,35 @@ def calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutof
     return S_refined
 
 def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
-    nyquist = 0.5 * sampling_rate
-    low = low_cutoff / nyquist
-    high = high_cutoff / nyquist
-    b, a = butter(2, [low, high], btype='band')
-    filtered_signal = lfilter(b, a, signal)
+    Xf = np.fft.fft(signal)
+    
+    # Create the frequency axis
+    freq = np.fft.fftfreq(len(signal), d=1/sampling_rate)
+    
+    # Create the bandpass filter mask
+    bandpass_mask = (freq >= low_cutoff) & (freq <= high_cutoff)
+    
+    # Apply the filter mask to the Fourier Transform
+    Xf_filtered = Xf * bandpass_mask
+    
+    # Perform Inverse Fourier Transform
+    filtered_signal = np.fft.ifft(Xf_filtered)
     return filtered_signal
 
-def calculate_pulse_signal(R, G, B,sampling_rate):
+def calculate_pulse_signal(R, G, B):
     Rn = R / np.mean(R)
     Gn = G / np.mean(G)
     Bn = B / np.mean(B)
-
     Xs = 3 * Rn - 2 * Gn
     Ys = 1.5 * Rn + Gn - 1.5 * Bn
 
-    low_cutoff = 0.5
-    high_cutoff = 4.1
+    return Xs, Ys
 
-    S_refined = calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
-
-    return S_refined
 
 # Open a video file
 video_path = 'videos/real/jenny.mp4'
 cap = cv2.VideoCapture(video_path)
+
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
@@ -68,14 +73,20 @@ while True:
         cropped_frame = frame[y:y+h, x:x+w]
         # Extract R, G, B channels
         R, G, B = cv2.split(cropped_frame)
-        sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
-        # Apply the algorithm
-        pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
-        # Display the original frame and the calculated pulse signal
-        cv2.imshow('Pulse Signal', pulse_signal)
-        cv2.imshow('Original Frame', cropped_frame)
+        sampling_rate = int(cap.get(cv2.CAP_PROP_FPS))
+        # Calculate the pulse signal
+        Xs, Ys = calculate_pulse_signal(R, G, B)
+        # Apply bandpass filter to the pulse signal
+        # Apply bandpass filter to the pulse signal
+        pulse_signal = calculate_refined_pulse_signal(Xs, Ys, sampling_rate)
 
-        # Break the loop if the 'q' key is pressed
+# Convert the pulse signal to the appropriate data type for visualization
+        pulse_signal_display = np.uint8(pulse_signal)
+
+# Display the refined pulse signal
+        cv2.imshow('Refined Pulse Signal', pulse_signal)
+
+    # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
