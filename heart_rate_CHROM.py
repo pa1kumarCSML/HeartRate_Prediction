@@ -4,12 +4,19 @@ from scipy.signal import butter, lfilter
 import dlib
 
 
-def calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
+def calculate_refined_pulse_signal(Rn, Gn, Bn, Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
+
+    Rf = bandpass_filter(Rn, low_cutoff, high_cutoff, sampling_rate)
+    Gf = bandpass_filter(Gn, low_cutoff, high_cutoff, sampling_rate)
+    Bf = bandpass_filter(Bn, low_cutoff, high_cutoff, sampling_rate)
     Xf = bandpass_filter(Xs, low_cutoff, high_cutoff, sampling_rate)
     Yf = bandpass_filter(Ys, low_cutoff, high_cutoff, sampling_rate)
+
     alpha = np.std(Xf) / np.std(Yf)
-    S_refined = Xf - alpha * Yf
-    return S_refined
+
+    Signal = 3*(1-(alpha/2))*Rf - 2*(1 + (alpha/2))*Gf + ((3*alpha)/2)*Bf
+
+    return Signal
 
 def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     nyquist = 0.5 * sampling_rate
@@ -19,23 +26,40 @@ def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     filtered_signal = lfilter(b, a, signal)
     return filtered_signal
 
+
+def normalizedSignal(channel):
+    mini = np.min(channel)
+    normal_signal = (channel - mini)/(np.max(channel) - mini)
+    return normal_signal
+
 def calculate_pulse_signal(R, G, B,sampling_rate):
+    #pure chrom based
+
+    # Rn=normalizedSignal(R)
+    # Gn=normalizedSignal(G)
+    # Bn=normalizedSignal(B)
+
+    # Xs=Rn-Gn
+    # Ys=0.5*Rn + 0.5*Gn - Bn
+
+    #paper-based
+
     Rn = R / np.mean(R)
     Gn = G / np.mean(G)
-    Bn = B / np.mean(B)
+    Bn = B / np.mean(B)    
 
-    Xs = 3 * Rn - 2 * Gn
-    Ys = 1.5 * Rn + Gn - 1.5 * Bn
+    Xs = 3*Rn - 2*Gn
+    Ys = 1.5*Rn + Gn - 1.5*Bn
 
     low_cutoff = 0.5
     high_cutoff = 4.1
 
-    S_refined = calculate_refined_pulse_signal(Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
+    S_refined = calculate_refined_pulse_signal(Rn, Gn, Bn,Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
     return S_refined
 
 # Open a video file
-video_path = 'videos/real/jenny.mp4'
+video_path = 'videos/fake/brad.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
@@ -68,7 +92,9 @@ while True:
         cropped_frame = frame[y:y+h, x:x+w]
         # Extract R, G, B channels
         R, G, B = cv2.split(cropped_frame)
-        sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
+        # sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
+        sampling_rate = int(cap.get(cv2.CAP_PROP_FPS))
+
         # Apply the algorithm
         pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
         # Display the original frame and the calculated pulse signal
