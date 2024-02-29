@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, lfilter, find_peaks
 import dlib
 
 
@@ -85,6 +85,7 @@ while True:
 
     # Detect faces in the grayscale frame
     faces = detector(gray)
+    avg_pulse_signal=np.array([])
 
     for face in faces:
         landmarks = predictor(gray, face)
@@ -98,6 +99,29 @@ while True:
         # Apply the algorithm
         pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
         # Display the original frame and the calculated pulse signal
+
+        avg_pulse_signal=np.append(avg_pulse_signal, np.mean(pulse_signal))
+
+        peaks, _ = find_peaks(avg_pulse_signal, np.mean(avg_pulse_signal))  
+        if len(peaks) > 1:
+            peak_intervals = np.diff(peaks) / sampling_rate * 60  
+            heart_rate_peaks = np.mean(peak_intervals)
+        else:
+            heart_rate_peaks = np.nan  # No peaks detected
+
+        # Frequency Analysis (FFT)
+        fft_result = np.abs(np.fft.rfft(avg_pulse_signal))
+        freqs = np.fft.rfftfreq(len(avg_pulse_signal), 1/sampling_rate)
+        peak_freq = freqs[np.argmax(fft_result)]
+        heart_rate_fft = peak_freq * 60
+
+        # Display heart rate estimations
+        cv2.putText(cropped_frame, f"HR(P):{heart_rate_peaks:.1f}", 
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+        cv2.putText(cropped_frame, f"HR(F):{heart_rate_fft:.1f}", 
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
         cv2.imshow('Pulse Signal', pulse_signal)
         cv2.imshow('Original Frame', cropped_frame)
 
