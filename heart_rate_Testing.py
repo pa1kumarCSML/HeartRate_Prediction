@@ -63,7 +63,7 @@ video_path = 'videos/real/brad.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
-
+avg_pulse_signal=np.array([])
 # Check if the video is successfully opened
 if not cap.isOpened():
     print("Error: Could not open video.")
@@ -85,7 +85,6 @@ while True:
 
     # Detect faces in the grayscale frame
     faces = detector(gray)
-    avg_pulse_signal=np.array([])
 
     for face in faces:
         landmarks = predictor(gray, face)
@@ -100,9 +99,11 @@ while True:
         pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
         # Display the original frame and the calculated pulse signal
 
-        avg_pulse_signal=np.append(avg_pulse_signal, np.mean(pulse_signal))
+        # avg_pulse_signal=np.mean(pulse_signal, axis=(0, 1))
+        avg_pulse_signal=np.append(avg_pulse_signal, np.mean(pulse_signal, axis=(0, 1)))
 
-        peaks, _ = find_peaks(avg_pulse_signal, np.mean(avg_pulse_signal))  
+        peaks, _ = find_peaks(avg_pulse_signal, prominence=0.4)  
+
         if len(peaks) > 1:
             peak_intervals = np.diff(peaks) / sampling_rate * 60  
             heart_rate_peaks = np.mean(peak_intervals)
