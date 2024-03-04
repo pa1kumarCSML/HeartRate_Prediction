@@ -34,9 +34,11 @@ while True:
         # Draw a rectangle around the detected face
         x, y, w, h = face.left(), face.top(), face.width(), face.height()
         cv2.rectangle(frame, (x, y), (x + w, y+h), (255, 0, 255), 1)
+        x, y, w, h = face.left(), face.top(), face.width(), face.height()
+        cropped_frame = frame[y:y+h, x:x+w]
 
     # Display the frame with facial landmarks
-    cv2.imshow('Facial Landmarks', frame)
+    cv2.imshow('Facial Landmarks', cropped_frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
