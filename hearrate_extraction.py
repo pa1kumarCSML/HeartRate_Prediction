@@ -63,10 +63,7 @@ video_path = 'videos/real/brad.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
-
-left_cheek_indices = [0, 4, 29, 8]
-right_cheek_indices = [16, 12, 29, 8]
-
+avg_pulse_signal=np.array([])
 # Check if the video is successfully opened
 if not cap.isOpened():
     print("Error: Could not open video.")
@@ -90,9 +87,8 @@ while True:
     faces = detector(gray)
 
     for face in faces:
-        
+        landmarks = predictor(gray, face)
         x, y, w, h = face.left(), face.top(), face.width(), face.height()
-
         cropped_frame = frame[y:y+h, x:x+w]
         # Extract R, G, B channels
         R, G, B = cv2.split(cropped_frame)
@@ -101,65 +97,35 @@ while True:
 
         # Apply the algorithm
         pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
+        # Display the original frame and the calculated pulse signal
 
-        landmarks = predictor(gray, face)
+        # avg_pulse_signal=np.mean(pulse_signal, axis=(0, 1))
+        avg_pulse_signal=np.append(avg_pulse_signal, np.mean(pulse_signal, axis=(0, 1)))
 
-        # Get the left and right cheek landmark points
-        left_cheek_points = [landmarks.part(i) for i in left_cheek_indices]
-        right_cheek_points = [landmarks.part(i) for i in right_cheek_indices]
+        peaks, _ = find_peaks(avg_pulse_signal, prominence=0.4)  
 
-        left_cheek_x1 = min(p.x for p in left_cheek_points)
-        left_cheek_y1 = min(p.y for p in left_cheek_points)
-        left_cheek_x2 = max(p.x for p in left_cheek_points)
-        left_cheek_y2 = max(p.y for p in left_cheek_points)
+        if len(peaks) > 1:
+            peak_intervals = np.diff(peaks) / sampling_rate * 60  
+            heart_rate_peaks = np.mean(peak_intervals)
+        else:
+            heart_rate_peaks = np.nan  # No peaks detected
 
-        if(left_cheek_x2-left_cheek_x1 > 25):
-            diff=left_cheek_x2-left_cheek_x1
-            left_cheek_x1+=diff//4
-            left_cheek_x2-=diff//3
+        # Frequency Analysis (FFT)
+        fft_result = np.abs(np.fft.rfft(avg_pulse_signal))
+        freqs = np.fft.rfftfreq(len(avg_pulse_signal), 1/sampling_rate)
+        peak_freq = freqs[np.argmax(fft_result)]
+        heart_rate_fft = peak_freq * 60
 
-        if(left_cheek_y2-left_cheek_y1 > 25):
-            diff=left_cheek_y2-left_cheek_y1
-            left_cheek_y1+=diff//5
-            left_cheek_y2-=diff//2
+        # Display heart rate estimations
+        cv2.putText(cropped_frame, f"HR(P):{heart_rate_peaks:.1f}", 
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-        right_cheek_x1 = min(p.x for p in right_cheek_points)
-        right_cheek_y1 = min(p.y for p in right_cheek_points)
-        right_cheek_x2 = max(p.x for p in right_cheek_points)
-        right_cheek_y2 = max(p.y for p in right_cheek_points)
+        cv2.putText(cropped_frame, f"HR(F):{heart_rate_fft:.1f}", 
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-        if(right_cheek_x2-right_cheek_x1 > 25):
-            diff=right_cheek_x2-right_cheek_x1
-            right_cheek_x1+=diff//3
-            right_cheek_x2-=diff//4
+        cv2.imshow('Pulse Signal', pulse_signal)
+        cv2.imshow('Original Frame', cropped_frame)
 
-        if(right_cheek_y2-right_cheek_y1 > 25):
-            diff=right_cheek_y2-right_cheek_y1
-            right_cheek_y1+=diff//5
-            right_cheek_y2-=diff//2
-
-        left_cheek_x1 -= x
-        left_cheek_y1 -= y
-        left_cheek_x2 -= x
-        left_cheek_y2 -= y
-
-        right_cheek_x1 -= x
-        right_cheek_y1 -= y
-        right_cheek_x2 -= x
-        right_cheek_y2 -= y
-
-        # Extract cheek ROIs from the cropped_frame 
-        left_cheek_frame = pulse_signal[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
-        right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
-        cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
-        cv2.rectangle(cropped_frame, (right_cheek_x1, right_cheek_y1), (right_cheek_x2, right_cheek_y2), (0, 0, 255), 2) 
-
-
-        cv2.imshow("Detecting Cheeks in Video", cropped_frame)
-        cv2.imshow("Pulse Signal", pulse_signal)
-        cv2.imshow("left cheek", left_cheek_frame)
-        cv2.imshow("right cheek", right_cheek_frame)
-        
         # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
