@@ -5,12 +5,14 @@ import cv2
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
-# Define the cheek landmark ranges (modify as needed for your requirements)
+# Define the cheek landmark ranges
 left_cheek_indices = [0, 4, 29, 8]
 right_cheek_indices = [16, 12, 29, 8]
 
+
 # Open the video capture
-cap = cv2.VideoCapture("videos/real/jenny.mp4")
+video_path="videos/real/brad.mp4"
+cap = cv2.VideoCapture(video_path)
 
 while True:
   # Capture frame-by-frame
@@ -39,7 +41,11 @@ while True:
     left_cheek_y1 = min(p.y for p in left_cheek_points)
     left_cheek_x2 = max(p.x for p in left_cheek_points)
     left_cheek_y2 = max(p.y for p in left_cheek_points)
-
+    
+    for n in range(0, 68):
+      x = landmarks.part(n).x
+      y = landmarks.part(n).y
+      cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
 
     if(left_cheek_x2-left_cheek_x1 > 25):
        diff=left_cheek_x2-left_cheek_x1
@@ -66,6 +72,8 @@ while True:
        right_cheek_y1+=diff//5
        right_cheek_y2-=diff//2
 
+       
+
 
 
     # Draw the boxes around the cheeks
@@ -73,7 +81,12 @@ while True:
     cv2.rectangle(frame, (right_cheek_x1, right_cheek_y1), (right_cheek_x2, right_cheek_y2), (0, 0, 255), 2)  # Red for right cheek
 
   # Display the resulting frame
+    left_cheek_frame = frame[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
+    right_cheek_frame = frame[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
+
   cv2.imshow("Detecting Cheeks in Video", frame)
+  cv2.imshow("left cheek", left_cheek_frame)
+  cv2.imshow("right cheek", right_cheek_frame)
 
   # Exit if 'q' key is pressed
   if cv2.waitKey(1) & 0xFF == ord('q'):

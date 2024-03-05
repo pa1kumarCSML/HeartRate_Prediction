@@ -91,7 +91,7 @@ while True:
         x, y, w, h = face.left(), face.top(), face.width(), face.height()
         cropped_frame = frame[y:y+h, x:x+w]
         # Extract R, G, B channels
-        R, G, B = cv2.split(cropped_frame)
+        R, G, B = cv2.split(frame)
         # sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
         sampling_rate = int(cap.get(cv2.CAP_PROP_FPS))
 
@@ -99,7 +99,7 @@ while True:
         pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
         # Display the original frame and the calculated pulse signal
         cv2.imshow('Pulse Signal', pulse_signal)
-        cv2.imshow('Original Frame', cropped_frame)
+        cv2.imshow('Original Frame', frame)
 
         # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
