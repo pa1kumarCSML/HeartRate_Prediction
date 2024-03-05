@@ -11,7 +11,7 @@ right_cheek_indices = [16, 12, 29, 8]
 
 
 # Open the video capture
-video_path="videos/real/brad.mp4"
+video_path="videos/real/jenny.mp4"
 cap = cv2.VideoCapture(video_path)
 
 while True:
@@ -42,10 +42,10 @@ while True:
     left_cheek_x2 = max(p.x for p in left_cheek_points)
     left_cheek_y2 = max(p.y for p in left_cheek_points)
     
-    for n in range(0, 68):
-      x = landmarks.part(n).x
-      y = landmarks.part(n).y
-      cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
+   #  for n in range(0, 68):
+   #    x = landmarks.part(n).x
+   #    y = landmarks.part(n).y
+   #    cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
 
     if(left_cheek_x2-left_cheek_x1 > 25):
        diff=left_cheek_x2-left_cheek_x1
@@ -71,10 +71,6 @@ while True:
        diff=right_cheek_y2-right_cheek_y1
        right_cheek_y1+=diff//5
        right_cheek_y2-=diff//2
-
-       
-
-
 
     # Draw the boxes around the cheeks
     cv2.rectangle(frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  # Green for left cheek
