@@ -51,15 +51,15 @@ def calculate_pulse_signal(R, G, B,sampling_rate):
     Xs = 3*Rn - 2*Gn
     Ys = 1.5*Rn + Gn - 1.5*Bn
 
-    low_cutoff = 0.5
-    high_cutoff = 4.1
+    low_cutoff = 0.6
+    high_cutoff = 4
 
     S_refined = calculate_refined_pulse_signal(Rn, Gn, Bn,Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
     return S_refined
 
 # Open a video file
-video_path = 'videos/real/brad.mp4'
+video_path = 'videos/real/jenny.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
@@ -92,21 +92,25 @@ while True:
     for face in faces:
         
         x, y, w, h = face.left(), face.top(), face.width(), face.height()
+        cropped_frame = frame[y:y+h, x:x+w]  #face region cropped
 
-        cropped_frame = frame[y:y+h, x:x+w]
         # Extract R, G, B channels
-        R, G, B = cv2.split(cropped_frame)
+        B, G, R = cv2.split(cropped_frame)
+
         # sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
         sampling_rate = int(cap.get(cv2.CAP_PROP_FPS))
 
-        # Apply the algorithm
+        # Apply the algorithm based on paper
         pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
 
+        #detecting roi--->left_cheek, right_cheek
         landmarks = predictor(gray, face)
 
         # Get the left and right cheek landmark points
         left_cheek_points = [landmarks.part(i) for i in left_cheek_indices]
         right_cheek_points = [landmarks.part(i) for i in right_cheek_indices]
+
+        #Adjusting parameters for left_cheek and right_cheek
 
         left_cheek_x1 = min(p.x for p in left_cheek_points)
         left_cheek_y1 = min(p.y for p in left_cheek_points)
@@ -148,13 +152,16 @@ while True:
         right_cheek_x2 -= x
         right_cheek_y2 -= y
 
-        # Extract cheek ROIs from the cropped_frame 
+        # Extract ROI frames from the cropped_frame 
         left_cheek_frame = pulse_signal[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
         right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
+
+        #Bounding Boxes for ROI
         cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
         cv2.rectangle(cropped_frame, (right_cheek_x1, right_cheek_y1), (right_cheek_x2, right_cheek_y2), (0, 0, 255), 2) 
 
 
+        #Displaying frames
         cv2.imshow("Detecting Cheeks in Video", cropped_frame)
         cv2.imshow("Pulse Signal", pulse_signal)
         cv2.imshow("left cheek", left_cheek_frame)

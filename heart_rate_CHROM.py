@@ -95,7 +95,7 @@ while True:
         cropped_frame = frame[y:y+h, x:x+w]  #face region cropped
 
         # Extract R, G, B channels
-        R, G, B = cv2.split(cropped_frame)
+        B, G, R = cv2.split(cropped_frame)
 
         # sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
         sampling_rate = int(cap.get(cv2.CAP_PROP_FPS))
