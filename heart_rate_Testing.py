@@ -171,8 +171,8 @@ while True:
 
         # Calculate heart rate from peaks
         heart_rate = calculate_heart_rate(peaks, sampling_rate)
-
-        print(heart_rate)
+        if heart_rate is not np.NaN:
+            print(heart_rate)
 
         #Bounding Boxes for ROI
         cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
