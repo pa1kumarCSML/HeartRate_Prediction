@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from scipy.signal import butter, lfilter, find_peaks
 import dlib
+import matplotlib.pyplot as plt
+
 
 
 def calculate_refined_pulse_signal(Rn, Gn, Bn, Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
@@ -60,8 +62,7 @@ def calculate_pulse_signal(R, G, B,sampling_rate):
 
 def calculate_heart_rate(peaks, fps):
     # Calculate time between consecutive peaks (in seconds)
-    peak_times = np.array(peaks) / fps
-    peak_intervals = np.diff(peak_times)
+    peak_intervals = np.diff(peaks)/fps
 
     # Calculate heart rate (beats per minute)
     heart_rate = 60 / np.mean(peak_intervals)
@@ -69,7 +70,7 @@ def calculate_heart_rate(peaks, fps):
 
 # Open a video file
 video_path = 'videos/real/jenny.mp4'
-cap = cv2.VideoCapture(video_path)
+cap = cv2.VideoCapture(0)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
@@ -167,7 +168,8 @@ while True:
         right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
 
         left_cheek_pulses = np.append(left_cheek_pulses,np.mean(left_cheek_frame))
-        peaks, _ = find_peaks(left_cheek_pulses)
+        peaks, _ = find_peaks(left_cheek_pulses,height=0.007,distance=sampling_rate/2)
+        # print(np.mean(left_cheek_frame))
 
         # Calculate heart rate from peaks
         heart_rate = calculate_heart_rate(peaks, sampling_rate)
@@ -191,3 +193,17 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+
+
+
+plt.plot(left_cheek_pulses)
+
+plt.xlabel('time')
+plt.ylabel('Mean Intensity of ROI')
+
+plt.ylim(0, 0.01)
+
+plt.title('Mean Intensity of rPPG Signal')
+
+plt.savefig('plot.png')
+plt.close()
