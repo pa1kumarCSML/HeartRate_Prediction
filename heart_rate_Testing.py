@@ -3,6 +3,7 @@ import numpy as np
 from scipy.signal import butter, lfilter, find_peaks
 import dlib
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 
 
@@ -70,7 +71,7 @@ def calculate_heart_rate(peaks, fps):
 
 fps=0
 # Open a video file
-video_path = 'videos/real/brad.mp4'
+video_path = 'videos/fake/rashmika.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
@@ -177,7 +178,6 @@ while True:
         if heart_rate is not np.NaN:
             print(heart_rate)
 
-        fps=sampling_rate
         #Bounding Boxes for ROI
         cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
         cv2.rectangle(cropped_frame, (right_cheek_x1, right_cheek_y1), (right_cheek_x2, right_cheek_y2), (0, 0, 255), 2) 
@@ -188,25 +188,12 @@ while True:
         cv2.imshow("Pulse Signal", pulse_signal)
         cv2.imshow("left cheek", left_cheek_frame)
         cv2.imshow("right cheek", right_cheek_frame)
-        plt.plot(left_cheek_pulses)
-
-        plt.xlabel('time')
-        plt.ylabel('Mean Intensity of ROI')
-
-        plt.ylim(0, 0.02)
-
-        plt.title('Mean Intensity of rPPG Signal')
-
-        plt.savefig('real_brad.png')
-        plt.close()
         # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
 cv2.destroyAllWindows()
-
-
 
 plt.plot(left_cheek_pulses)
 
@@ -217,6 +204,5 @@ plt.ylim(0, 0.02)
 
 plt.title('Mean Intensity of rPPG Signal')
 
-plt.savefig('plot.png')
+plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_' + '_'.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
 plt.close()
-print(fps)
