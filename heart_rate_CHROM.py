@@ -2,6 +2,9 @@ import cv2
 import numpy as np
 from scipy.signal import butter, lfilter, find_peaks
 import dlib
+import matplotlib.pyplot as plt
+from datetime import datetime
+
 
 
 def calculate_refined_pulse_signal(Rn, Gn, Bn, Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
@@ -20,9 +23,9 @@ def calculate_refined_pulse_signal(Rn, Gn, Bn, Xs, Ys, sampling_rate, low_cutoff
 
 def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     nyquist = 0.5 * sampling_rate
-    low = low_cutoff / nyquist
-    high = high_cutoff / nyquist
-    b, a = butter(2, [low, high], btype='band')
+    low = float(low_cutoff) / float(nyquist)
+    high = float(high_cutoff) / float(nyquist)
+    b, a = butter(6.0, [low, high], btype='band')
     filtered_signal = lfilter(b, a, signal)
     return filtered_signal
 
@@ -51,21 +54,31 @@ def calculate_pulse_signal(R, G, B,sampling_rate):
     Xs = 3*Rn - 2*Gn
     Ys = 1.5*Rn + Gn - 1.5*Bn
 
-    low_cutoff = 0.75
-    high_cutoff = 3
+    low_cutoff = 0.6
+    high_cutoff = 4
 
     S_refined = calculate_refined_pulse_signal(Rn, Gn, Bn,Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
     return S_refined
 
+def calculate_heart_rate(peaks, fps):
+    # Calculate time between consecutive peaks (in seconds)
+    peak_intervals = np.diff(peaks)/fps
+
+    # Calculate heart rate (beats per minute)
+    heart_rate = 60 / np.mean(peak_intervals)
+    return heart_rate
+
+fps=0
 # Open a video file
-video_path = 'videos/real/jenny.mp4'
+video_path = 'videos/fake/rashmika.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
 left_cheek_indices = [0, 4, 29, 8]
 right_cheek_indices = [16, 12, 29, 8]
+left_cheek_pulses=np.empty([])
 
 # Check if the video is successfully opened
 if not cap.isOpened():
@@ -156,6 +169,15 @@ while True:
         left_cheek_frame = pulse_signal[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
         right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
 
+        left_cheek_pulses = np.append(left_cheek_pulses,np.mean(left_cheek_frame))
+        peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate/2)
+        # print(np.mean(left_cheek_frame))
+
+        # Calculate heart rate from peaks
+        heart_rate = calculate_heart_rate(peaks, sampling_rate)
+        if heart_rate is not np.NaN:
+            print(heart_rate)
+
         #Bounding Boxes for ROI
         cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
         cv2.rectangle(cropped_frame, (right_cheek_x1, right_cheek_y1), (right_cheek_x2, right_cheek_y2), (0, 0, 255), 2) 
@@ -166,10 +188,21 @@ while True:
         cv2.imshow("Pulse Signal", pulse_signal)
         cv2.imshow("left cheek", left_cheek_frame)
         cv2.imshow("right cheek", right_cheek_frame)
-        
         # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
 cv2.destroyAllWindows()
+
+plt.plot(left_cheek_pulses)
+
+plt.xlabel('time')
+plt.ylabel('Mean Intensity of ROI')
+
+plt.ylim(0, 0.02)
+
+plt.title('Mean Intensity of rPPG Signal')
+
+plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_' + '_'.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
+plt.close()
