@@ -3,8 +3,6 @@ import numpy as np
 from scipy.signal import butter, lfilter, find_peaks
 import dlib
 import matplotlib.pyplot as plt
-import math
-
 from datetime import datetime
 
 
@@ -66,14 +64,13 @@ def calculate_pulse_signal(R, G, B,sampling_rate):
 def calculate_heart_rate(peaks, fps):
     # Calculate time between consecutive peaks (in seconds)
     peak_intervals = np.diff(peaks)/fps
-
     # Calculate heart rate (beats per minute)
     heart_rate = 60 / np.mean(peak_intervals)
     return heart_rate
 
 fps=0
 # Open a video file
-video_path = 'videos/real/jenny.mp4'
+video_path = 'videos/fake/jenny.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
@@ -81,6 +78,8 @@ predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.d
 left_cheek_indices = [0, 4, 29, 8]
 right_cheek_indices = [16, 12, 29, 8]
 left_cheek_pulses=np.empty([])
+right_cheek_pulses=np.empty([])
+forehead_pulses=np.empty([])
 
 # Check if the video is successfully opened
 if not cap.isOpened():
@@ -157,12 +156,11 @@ while True:
             right_cheek_y1+=diff//5
             right_cheek_y2-=diff//2
 
-
          # Identify forehead region based on landmarks
-        forehead_x1 = max(landmarks.part(19).x, landmarks.part(20).x)  # Left eyebrow
-        forehead_x2 = max(landmarks.part(23).x, landmarks.part(24).x)  # Right eyebrow
-        forehead_y1 = min(landmarks.part(19).y, landmarks.part(20).y) - math.floor(abs(forehead_x2-forehead_x1)*0.8)  # Hairline
-        forehead_y2 = max(landmarks.part(23).y, landmarks.part(24).y) # Baseline
+        forehead_x1 = landmarks.part(19).x # Left eyebrow-x
+        forehead_x2 = landmarks.part(24).x  # Right eyebrow-x
+        forehead_y1 = landmarks.part(19).y # Left eyebrow-y
+        forehead_y2 = landmarks.part(24).y # Right eyebrow-y
 
         left_cheek_x1 -= x
         left_cheek_y1 -= y
@@ -170,23 +168,20 @@ while True:
         left_cheek_y2 -= y
 
         right_cheek_x1 -= x
-        right_cheek_y1 = y
+        right_cheek_y1 -= y
         right_cheek_x2 -= x
         right_cheek_y2 -= y
 
-        # forehead_x1-=x
-        # forehead_x2-=x
-        # forehead_y2 =y
-        # forehead_y1 =y
-        
-
-
+        forehead_x1-=x
+        forehead_y1-=y
+        forehead_x2-=x
+        forehead_y2-=y    
+        forehead_y1=0 #fixing the top for forehead
 
         # Extract ROI frames from the cropped_frame 
         left_cheek_frame = pulse_signal[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
         right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
-        forehead_frame= pulse_signal[forehead_y1:forehead_y2, forehead_x1:forehead_x2]
-        print(forehead_y1, forehead_y1)
+        forehead_frame = pulse_signal[forehead_y1:forehead_y2, forehead_x1:forehead_x2]
 
         left_cheek_pulses = np.append(left_cheek_pulses,np.mean(left_cheek_frame))
         peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate/2)
@@ -200,14 +195,15 @@ while True:
         #Bounding Boxes for ROI
         cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
         cv2.rectangle(cropped_frame, (right_cheek_x1, right_cheek_y1), (right_cheek_x2, right_cheek_y2), (0, 0, 255), 2) 
-        # cv2.rectangle(cropped_frame,(forehead_x1, forehead_y1), (forehead_x2, forehead_y2), (255,0,0), 2)
+        cv2.rectangle(cropped_frame, (forehead_x1, forehead_y1), (forehead_x2, forehead_y2), (0, 0, 255), 2) 
+
 
         #Displaying frames
         cv2.imshow("Detecting Cheeks in Video", cropped_frame)
         cv2.imshow("Pulse Signal", pulse_signal)
         cv2.imshow("left cheek", left_cheek_frame)
         cv2.imshow("right cheek", right_cheek_frame)
-        cv2.imshow("forehead",forehead_frame)
+        cv2.imshow("fore head", forehead_frame)
         # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
