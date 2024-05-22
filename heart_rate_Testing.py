@@ -70,8 +70,8 @@ def calculate_heart_rate(peaks, fps):
 
 fps=0
 # Open a video file
-video_path = 'videos/fake/jenny.mp4'
-cap = cv2.VideoCapture(video_path)
+video_path = 'videos/real/jenny.mp4'
+cap = cv2.VideoCapture(0)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
@@ -182,15 +182,30 @@ while True:
         left_cheek_frame = pulse_signal[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
         right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
         forehead_frame = pulse_signal[forehead_y1:forehead_y2, forehead_x1:forehead_x2]
-
+		
+		#pulse arrays
         left_cheek_pulses = np.append(left_cheek_pulses,np.mean(left_cheek_frame))
-        peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate/2)
-        # print(np.mean(left_cheek_frame))
-
-        # Calculate heart rate from peaks
+        right_cheek_pulses = np.append(right_cheek_pulses,np.mean(right_cheek_frame))
+        forehead_pulses = np.append(forehead_pulses, np.mean(forehead_frame))
+        
+		# Calculate heart rate from peaks
+        #left cheek
+        peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate/2)        
         heart_rate = calculate_heart_rate(peaks, sampling_rate)
-        if heart_rate is not np.NaN:
-            print(heart_rate)
+        if heart_rate is not np.nan:
+            print("left cheek: ",heart_rate)
+
+		#right cheek 
+        peaks, _ = find_peaks(right_cheek_pulses,height=0.005,distance=sampling_rate/2)
+        heart_rate = calculate_heart_rate(peaks, sampling_rate)
+        if heart_rate is not np.nan:
+            print("right cheek: ",heart_rate)
+
+        #forehead 
+        peaks, _ = find_peaks(forehead_pulses,height=0.005,distance=sampling_rate/2)
+        heart_rate = calculate_heart_rate(peaks, sampling_rate)
+        if heart_rate is not np.nan:
+            print("forehead: ",heart_rate)
 
         #Bounding Boxes for ROI
         cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
@@ -203,22 +218,39 @@ while True:
         cv2.imshow("Pulse Signal", pulse_signal)
         cv2.imshow("left cheek", left_cheek_frame)
         cv2.imshow("right cheek", right_cheek_frame)
-        cv2.imshow("fore head", forehead_frame)
+        cv2.imshow("fore head", forehead_frame)       
+
         # Break the loop if the 'q' key is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
 cap.release()
 cv2.destroyAllWindows()
-
+#plotting the hear rate
+#left cheek
 plt.plot(left_cheek_pulses)
 
 plt.xlabel('time')
 plt.ylabel('Mean Intensity of ROI')
-
 plt.ylim(0, 0.02)
-
 plt.title('Mean Intensity of rPPG Signal')
+plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_leftcheek_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
+plt.close()
 
-plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_' + '_'.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
+#right cheek
+plt.plot(right_cheek_pulses)
+plt.xlabel('time')
+plt.ylabel('Mean Intensity of ROI')
+plt.ylim(0, 0.02)
+plt.title('Mean Intensity of rPPG Signal')
+plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_rightcheek_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
+plt.close()
+
+#forehead
+plt.plot(forehead_pulses)
+plt.xlabel('time')
+plt.ylabel('Mean Intensity of ROI')
+plt.ylim(0, 0.02)
+plt.title('Mean Intensity of rPPG Signal')
+plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_forehead_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
 plt.close()
