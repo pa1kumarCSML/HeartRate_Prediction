@@ -70,8 +70,8 @@ def calculate_heart_rate(peaks, fps):
 
 fps=0
 # Open a video file
-video_path = 'videos/real/jenny.mp4'
-cap = cv2.VideoCapture(0)
+video_path = 'videos/real/vid.avi'
+cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
@@ -113,7 +113,7 @@ while True:
 
         # sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
         sampling_rate = int(cap.get(cv2.CAP_PROP_FPS))
-
+        fps=sampling_rate
         # Apply the algorithm based on paper
         pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
 
@@ -196,14 +196,14 @@ while True:
             print("left cheek: ",heart_rate)
 
 		#right cheek 
-        peaks, _ = find_peaks(right_cheek_pulses,height=0.005,distance=sampling_rate/2)
-        heart_rate = calculate_heart_rate(peaks, sampling_rate)
+        peaks2, _ = find_peaks(right_cheek_pulses,height=0.005,distance=sampling_rate/2)
+        heart_rate = calculate_heart_rate(peaks2, sampling_rate)
         if heart_rate is not np.nan:
             print("right cheek: ",heart_rate)
 
         #forehead 
-        peaks, _ = find_peaks(forehead_pulses,height=0.005,distance=sampling_rate/2)
-        heart_rate = calculate_heart_rate(peaks, sampling_rate)
+        peaks3, _ = find_peaks(forehead_pulses,height=0.005,distance=sampling_rate/2)
+        heart_rate = calculate_heart_rate(peaks3, sampling_rate)
         if heart_rate is not np.nan:
             print("forehead: ",heart_rate)
 
@@ -229,19 +229,24 @@ cv2.destroyAllWindows()
 #plotting the hear rate
 #left cheek
 plt.plot(left_cheek_pulses)
-
+print(len(left_cheek_pulses),(len(left_cheek_pulses)//fps))
 plt.xlabel('time')
 plt.ylabel('Mean Intensity of ROI')
 plt.ylim(0, 0.02)
+plt.xlim(0,(len(left_cheek_pulses)//fps))
+plt.xticks(range(0, (len(left_cheek_pulses)//fps)+1, 10))
 plt.title('Mean Intensity of rPPG Signal')
 plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_leftcheek_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
 plt.close()
 
 #right cheek
 plt.plot(right_cheek_pulses)
+print(len(right_cheek_pulses), len(right_cheek_pulses)//fps)
 plt.xlabel('time')
 plt.ylabel('Mean Intensity of ROI')
 plt.ylim(0, 0.02)
+plt.xlim(0,(len(right_cheek_pulses)//fps))
+plt.xticks(range(0, (len(right_cheek_pulses)//fps)+1, 10))
 plt.title('Mean Intensity of rPPG Signal')
 plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_rightcheek_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
 plt.close()
@@ -251,6 +256,9 @@ plt.plot(forehead_pulses)
 plt.xlabel('time')
 plt.ylabel('Mean Intensity of ROI')
 plt.ylim(0, 0.02)
+plt.xlim(0,(len(forehead_pulses)//fps))
+print((len(forehead_pulses)//fps))
+plt.xticks(range(0, (len(forehead_pulses)//fps)+1, 10))
 plt.title('Mean Intensity of rPPG Signal')
 plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_forehead_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
 plt.close()
