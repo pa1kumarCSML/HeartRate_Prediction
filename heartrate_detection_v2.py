@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from scipy.signal import butter, filtfilt
 import matplotlib.pyplot as plt
+from scipy.fft import fft, ifft, fftfreq
 
 def normalize_video(video, window_size):  
   normalized_video = np.zeros_like(video)
@@ -20,13 +21,22 @@ def normalize_video(video, window_size):
   return normalized_video
 
 
-def bandpass_filter(data, lowcut, highcut, fs, order=5):
-    nyquist = 0.5 * fs
-    low = lowcut / nyquist
-    high = highcut / nyquist
-    b, a = butter(order, [low, high], btype='band')
-    y = filtfilt(b, a, data)
-    return y
+def bandpass_filter(signal, lowcut, highcut, fps):
+  N = len(signal)
+  T = 1 / fps
+
+  # Perform Fourier transform
+  freq_signal = fft(signal)
+  frequencies = fftfreq(N, T)
+
+  # Apply bandpass filter
+  mask = (frequencies > lowcut) & (frequencies < highcut)
+  filtered_freq_signal = freq_signal * mask
+
+  # Perform inverse Fourier transform
+  filtered_signal = ifft(filtered_freq_signal)
+  return np.real(filtered_signal)
+  
 
 
 
@@ -34,9 +44,10 @@ def bandpass_filter(data, lowcut, highcut, fs, order=5):
 # windowSizes=[10,20,30,40,50,60]
 windowSizes=[10]
 
-lowcut = 0.75  # Low cut frequency for bandpass filter
-highcut = 2.5  # High cut frequency for bandpass filter
-
+lowcut = 0.5  # Low cut frequency for bandpass filter
+highcut = 4  # High cut frequency for bandpass filter
+fs = 10
+hr=[ 0.5,4]
 # Read video from file
 video_path="videos/real/vid.avi"
 cap = cv2.VideoCapture(video_path)
@@ -73,15 +84,15 @@ for windowSize in windowSizes:
     Xs = 3*Rn - 2*Gn
     Ys = 1.5*Rn + Gn - 1.5*Bn
 
-    # # Apply bandpass filter
-    # Xf = bandpass_filter(Xs, lowcut, highcut, fps)
-    # Yf = bandpass_filter(Ys, lowcut, highcut, fps)
+    # Apply bandpass filter
+    Xf = bandpass_filter(Xs, lowcut, highcut, fs)
+    Yf = bandpass_filter(Ys, lowcut, highcut, fs)
 
-    # # Calculate the weighting factor alpha
-    # alpha = np.std(Xf) / np.std(Yf)
+    # Calculate the weighting factor alpha
+    alpha = np.std(Xf) / np.std(Yf)
 
-    # # Compute the pulse signal
-    # S = Xf - alpha * Yf
+    # Compute the pulse signal
+    S = Xf - alpha * Yf
 
 cap.release()
 cv2.destroyAllWindows()
