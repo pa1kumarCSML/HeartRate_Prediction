@@ -54,8 +54,8 @@ def calculate_pulse_signal(R, G, B,sampling_rate):
     Xs = 3*Rn - 2*Gn
     Ys = 1.5*Rn + Gn - 1.5*Bn
 
-    low_cutoff = 0.6
-    high_cutoff = 4
+    low_cutoff = 0.75
+    high_cutoff = 2.5
 
     S_refined = calculate_refined_pulse_signal(Rn, Gn, Bn,Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
