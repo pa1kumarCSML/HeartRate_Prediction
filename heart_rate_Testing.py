@@ -25,8 +25,8 @@ def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     nyquist = 0.5 * sampling_rate
     low = float(low_cutoff) / float(nyquist)
     high = float(high_cutoff) / float(nyquist)
-    b, a = butter(6.0, [low, high], btype='band')
-    filtered_signal = lfilter(b, a, signal)
+    b, a = butter(5, [low, high], btype='band')
+    filtered_signal = filtfilt(b, a, signal)
     return filtered_signal
 
 
