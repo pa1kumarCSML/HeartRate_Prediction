@@ -6,7 +6,7 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
 # Open video file
-video_path= 'videos/fake/rashmika.mp4'
+video_path= 'videos/real/jenny.mp4'
 cap = cv2.VideoCapture(video_path)
 
 # Process each frame in the video
