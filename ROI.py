@@ -34,8 +34,6 @@ while cap.isOpened():
         
        
         height=int((forehead_x2 - forehead_x1)*0.7)
-
-        print(forehead_x1,forehead_x2,forehead_y1,forehead_y2, height)
         # Draw rectangle with increased breadth
         cv2.rectangle(frame, (forehead_x1, forehead_y1-height), (forehead_x2, forehead_y2), (0, 255, 0), 2)
         

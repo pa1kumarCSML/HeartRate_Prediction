@@ -98,6 +98,10 @@ while True:
         break
     all_frames.append(frame)
 
+
+cap.release()
+cv2.destroyAllWindows()
+
 # Convert frames list to a numpy array
 video = np.array(all_frames)
 
@@ -126,7 +130,13 @@ for windowSize in windowSizes:
         signal[i] = 3 * (1 - (alpha / 2)) * Rf[i] - 2 * (1 + (alpha / 2)) * Gf[i] + ((3 * alpha) / 2) * Bf[i]
     bpm = hearrate_detected(signal, fps)
     print(f"Estimated Heart Rate: {bpm} BPM")
-
-cap.release()
-cv2.destroyAllWindows()
-print("Frames per second:", fps, "Width:", width, "Height:", height)
+    time_series = np.mean(signal, axis=(1, 2))
+    plt.plot(time_series, label='Pulse Signal')
+    plt.title('Pulse Signal over Time')
+    plt.xlabel('Time')
+    plt.ylabel('Intensity')
+    plt.xlim(0, len(signal)//fps)
+    plt.legend()
+    # Display the BPM on the plot
+    plt.text(0.05, 0.95, f'Estimated Heart Rate: {bpm:.2f} BPM', horizontalalignment='left', verticalalignment='top', transform=plt.gca().transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
+    plt.savefig('pulse_signal.png')
