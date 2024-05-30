@@ -21,9 +21,9 @@ def normalize_video(video, window_size):
   return normalized_video
 
 
-def bandpass_filter(signal, lowcut, highcut, fps):
+def bandpass_filter(signal, lowcut, highcut, fs):
   N = len(signal)
-  T = 1 / fps
+  T = 1 / fs
 
   # Perform Fourier transform
   freq_signal = fft(signal)
@@ -85,6 +85,15 @@ for windowSize in windowSizes:
     Ys = 1.5*Rn + Gn - 1.5*Bn
 
     # Apply bandpass filter
+    Rf = bandpass_filter(Rn, lowcut, highcut, fs)
+    Gf = bandpass_filter(Gn, lowcut, highcut, fs)
+    Bf = bandpass_filter(Bn, lowcut, highcut, fs)
+    Xf = bandpass_filter(Xs, lowcut, highcut, fs)
+    Yf = bandpass_filter(Ys, lowcut, highcut, fs)
+
+    alpha = np.std(Xf) / np.std(Yf)
+
+    Signal = 3*(1-(alpha/2))*Rf - 2*(1 + (alpha/2))*Gf + ((3*alpha)/2)*Bf
     Xf = bandpass_filter(Xs, lowcut, highcut, fs)
     Yf = bandpass_filter(Ys, lowcut, highcut, fs)
 
