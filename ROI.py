@@ -6,7 +6,7 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
 # Open video file
-video_path= 'videos/fake/rashmika.mp4'
+video_path= 'videos/real/jenny.mp4'
 cap = cv2.VideoCapture(video_path)
 
 # Process each frame in the video
@@ -34,8 +34,6 @@ while cap.isOpened():
         
        
         height=int((forehead_x2 - forehead_x1)*0.7)
-
-        print(forehead_x1,forehead_x2,forehead_y1,forehead_y2, height)
         # Draw rectangle with increased breadth
         cv2.rectangle(frame, (forehead_x1, forehead_y1-height), (forehead_x2, forehead_y2), (0, 255, 0), 2)
         

@@ -97,14 +97,14 @@ while True:
     # Check if the frame has 3 channels (R, G, B)
     if frame.shape[-1] != 3:
         raise ValueError("The frame should have 3 color channels (R, G, B)")
-    
+
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Detect faces in the grayscale frame
     faces = detector(gray)
 
     for face in faces:
-        
+
         x, y, w, h = face.left(), face.top(), face.width(), face.height()
         cropped_frame = frame[y:y+h, x:x+w]  #face region cropped
 
@@ -182,12 +182,12 @@ while True:
         left_cheek_frame = pulse_signal[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
         right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
         forehead_frame = pulse_signal[forehead_y1:forehead_y2, forehead_x1:forehead_x2]
-		
+
 		#pulse arrays
         left_cheek_pulses = np.append(left_cheek_pulses,np.mean(left_cheek_frame))
         right_cheek_pulses = np.append(right_cheek_pulses,np.mean(right_cheek_frame))
         forehead_pulses = np.append(forehead_pulses, np.mean(forehead_frame))
-        
+
 		# Calculate heart rate from peaks
         #left cheek
         peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate/2)        
