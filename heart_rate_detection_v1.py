@@ -135,7 +135,7 @@ for windowSize in windowSizes:
     plt.title('Pulse Signal over Time')
     plt.xlabel('Time')
     plt.ylabel('Intensity')
-    plt.xlim(0, len(signal)//fps)
+    # plt.xlim(0, len(signal)//fps)
     plt.legend()
     # Display the BPM on the plot
     plt.text(0.05, 0.95, f'Estimated Heart Rate: {bpm:.2f} BPM', horizontalalignment='left', verticalalignment='top', transform=plt.gca().transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
