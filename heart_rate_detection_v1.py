@@ -6,7 +6,7 @@ from scipy.fft import fft, fftfreq
 
 
 # Window sizes for extracting heart rate
-windowSizes = [30]
+windowSizes = [45]
 # Low and high cutoff frequencies
 lowcut = 0.75  # Low cut frequency for bandpass filter
 highcut = 2.5  # High cut frequency for bandpass filter
@@ -139,4 +139,4 @@ for windowSize in windowSizes:
     plt.legend()
     # Display the BPM on the plot
     plt.text(0.05, 0.95, f'Estimated Heart Rate: {bpm:.2f} BPM', horizontalalignment='left', verticalalignment='top', transform=plt.gca().transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
-    plt.savefig('pulse_signal.png')
+    plt.savefig('plots/pulse_signal.png')

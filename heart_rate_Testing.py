@@ -25,7 +25,7 @@ def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     nyquist = 0.5 * sampling_rate
     low = float(low_cutoff) / float(nyquist)
     high = float(high_cutoff) / float(nyquist)
-    b, a = butter(6.0, [low, high], btype='band')
+    b, a = butter(5, [low, high], btype='band')
     filtered_signal = lfilter(b, a, signal)
     return filtered_signal
 
@@ -54,8 +54,8 @@ def calculate_pulse_signal(R, G, B,sampling_rate):
     Xs = 3*Rn - 2*Gn
     Ys = 1.5*Rn + Gn - 1.5*Bn
 
-    low_cutoff = 0.6
-    high_cutoff = 4
+    low_cutoff = 0.75
+    high_cutoff = 2.25
 
     S_refined = calculate_refined_pulse_signal(Rn, Gn, Bn,Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
 
@@ -202,7 +202,7 @@ while True:
             print("right cheek: ",heart_rate)
 
         #forehead 
-        peaks3, _ = find_peaks(forehead_pulses,height=0.005,distance=sampling_rate/2)
+        peaks3, _ = find_peaks(forehead_pulses,height=0.005,distance=sampling_rate)
         heart_rate = calculate_heart_rate(peaks3, sampling_rate)
         if heart_rate is not np.nan:
             print("forehead: ",heart_rate)

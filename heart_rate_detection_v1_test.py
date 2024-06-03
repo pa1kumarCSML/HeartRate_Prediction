@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq
 
 # Window sizes for extracting heart rate
-windowSizes = [30]
+windowSizes = [40]
 # Low and high cutoff frequencies
 lowcut = 0.75  # Low cut frequency for bandpass filter
-highcut = 4  # High cut frequency for bandpass filter
+highcut = 2.25  # High cut frequency for bandpass filter
 
 # Sampling rate
 fs = 2 * highcut

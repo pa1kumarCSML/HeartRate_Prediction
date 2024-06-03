@@ -6,8 +6,8 @@ from scipy.fft import fft2, ifft2
 
 
 #window sizes for extracting heartrate
-# windowSizes=[10,20,30,40,50,60]
-windowSizes=[10]
+# windowSizes=[30,45,50,55,60,65]
+windowSizes=[45]
 #low and high cutoff frequencies
 lowcut = 0.75  # Low cut frequency for bandpass filter
 highcut = 2.5  # High cut frequency for bandpass filter
@@ -38,25 +38,11 @@ def normalize_video(video, window_size):
 
 
 def butter_bandpass(data, lowcut, highcut, fs, order=5):
-  """
-  Applies a Butterworth bandpass filter to a 2D array.
-
-  Args:
-      data: The 2D array representing the image.
-      lowcut: Lower cutoff frequency (normalized by half the sampling rate).
-      highcut: Upper cutoff frequency (normalized by half the sampling rate).
-      fs: Sampling rate (usually image width or height in pixels).
-      order: Filter order (higher for steeper roll-off but potentially more artifacts).
-
-  Returns:
-      The filtered image (2D array).
-  """
   nyquist = 0.5 * fs  # Nyquist frequency
   lowcut_norm = lowcut / nyquist
   highcut_norm = highcut / nyquist
   b, a = butter(order, [lowcut_norm, highcut_norm], btype='bandpass')
 
-  # Apply filter in frequency domain
   fft_data = fft2(data)
   filtered_fft = b[:, :, np.newaxis] * fft_data
   filtered_image = ifft2(filtered_fft).real
@@ -67,19 +53,6 @@ def butter_bandpass(data, lowcut, highcut, fs, order=5):
 
   
 def bandpass_filter(frames, lowcut, highcut, fs):
-  """
-  Applies a Butterworth bandpass filter to an array of images.
-
-  Args:
-      images: A 3D numpy array representing a stack of images.
-          (num_images, height, width)
-      lowcut: Lower cutoff frequency.
-      highcut: Upper cutoff frequency.
-      fs: Sampling rate (usually image width or height in pixels).
-
-  Returns:
-      A 3D numpy array containing the filtered images.
-  """
   filtered_images = np.empty_like(frames)
   for i, frame in enumerate(frames):
     filtered_images[i] = butter_bandpass(frame, lowcut, highcut, fs)
