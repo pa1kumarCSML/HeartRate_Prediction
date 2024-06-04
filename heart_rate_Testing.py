@@ -1,264 +1,200 @@
 import cv2
 import numpy as np
-from scipy.signal import butter, lfilter, find_peaks
-import dlib
+from scipy.signal import butter, filtfilt
 import matplotlib.pyplot as plt
-from datetime import datetime
+from scipy.fft import fft, fftfreq
 
+# Window sizes for extracting heart rate
+windowSizes = [40]
+# Low and high cutoff frequencies
+lowcut = 0.75  # Low cut frequency for bandpass filter
+highcut = 2.25  # High cut frequency for bandpass filter
 
+# Sampling rate
+fs = 2 * highcut
 
-def calculate_refined_pulse_signal(Rn, Gn, Bn, Xs, Ys, sampling_rate, low_cutoff, high_cutoff):
+def normalize_video(video, window_size):
+    video = video.astype(np.float32)
+    normalized_video = np.zeros_like(video)
+    for frame_idx in range(video.shape[0]):
+        # Get a window of frames around the current frame
+        window_start = max(0, frame_idx - window_size // 2)
+        window_end = min(video.shape[0], frame_idx + window_size // 2 + 1)
+        window = video[window_start:window_end]
 
-    Rf = bandpass_filter(Rn, low_cutoff, high_cutoff, sampling_rate)
-    Gf = bandpass_filter(Gn, low_cutoff, high_cutoff, sampling_rate)
-    Bf = bandpass_filter(Bn, low_cutoff, high_cutoff, sampling_rate)
-    Xf = bandpass_filter(Xs, low_cutoff, high_cutoff, sampling_rate)
-    Yf = bandpass_filter(Ys, low_cutoff, high_cutoff, sampling_rate)
+        # Calculate average color for each channel across the window
+        average_color = np.mean(window, axis=0)
 
-    alpha = np.std(Xf) / np.std(Yf)
+        # Normalize each channel of the current frame
+        normalized_video[frame_idx] = video[frame_idx] / average_color
 
-    Signal = 3*(1-(alpha/2))*Rf - 2*(1 + (alpha/2))*Gf + ((3*alpha)/2)*Bf
+    return normalized_video
 
-    return Signal
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyquist = 0.5 * fs  # Nyquist frequency
+    lowcut_norm = lowcut / nyquist 
+    highcut_norm = highcut / nyquist
+    b, a = butter(order, [lowcut_norm, highcut_norm], btype='band')
+    return b, a
 
-def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
-    nyquist = 0.5 * sampling_rate
-    low = float(low_cutoff) / float(nyquist)
-    high = float(high_cutoff) / float(nyquist)
-    b, a = butter(5, [low, high], btype='band')
-    filtered_signal = lfilter(b, a, signal)
-    return filtered_signal
+def apply_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    if data.shape[0] <= 33:
+        raise ValueError("The length of the input vector x must be greater than padlen, which is 33.")
+    b, a = butter_bandpass(lowcut, highcut-0.1, fs, order)
+    y = filtfilt(b, a, data, axis=0)
+    return y
 
+def bandpass_filter(frames, lowcut, highcut, fs, order=5):
+    filtered_images = np.empty_like(frames)
+    for i, frame in enumerate(frames):
+        filtered_images[i] = apply_bandpass_filter(frame, lowcut, highcut, fs, order)
+    return filtered_images
 
-def normalizedSignal(channel):
-    mini = np.min(channel)
-    normal_signal = (channel - mini)/(np.max(channel) - mini)
-    return normal_signal
+def hearrate_detected(signal, fps):
+    # Collapse 3D signal array to 1D time series by averaging over spatial dimensions
+    time_series = np.mean(signal, axis=(1, 2))
 
-def calculate_pulse_signal(R, G, B,sampling_rate):
-    #pure chrom based
+    # Apply FFT
+    N = len(time_series)
+    yf = fft(time_series)
+    xf = fftfreq(N, 1 / fps)[:N // 2]
 
-    # Rn=normalizedSignal(R)
-    # Gn=normalizedSignal(G)
-    # Bn=normalizedSignal(B)
+    # Find the dominant frequency in the expected heart rate range
+    heart_rate_range = (lowcut, highcut)
+    idx_range = np.where((xf >= heart_rate_range[0]) & (xf <= heart_rate_range[1]))
+    dominant_freq = xf[idx_range][np.argmax(np.abs(yf[idx_range]))]
 
-    # Xs=Rn-Gn
-    # Ys=0.5*Rn + 0.5*Gn - Bn
+    # Convert frequency to beats per minute (BPM)
+    bpm = dominant_freq * 60
 
-    #based on paper
+    return bpm
 
-    Rn = R / np.mean(R)
-    Gn = G / np.mean(G)
-    Bn = B / np.mean(B)    
-
-    Xs = 3*Rn - 2*Gn
-    Ys = 1.5*Rn + Gn - 1.5*Bn
-
-    low_cutoff = 0.75
-    high_cutoff = 2.25
-
-    S_refined = calculate_refined_pulse_signal(Rn, Gn, Bn,Xs, Ys, sampling_rate, low_cutoff, high_cutoff)
-
-    return S_refined
-
-def calculate_heart_rate(peaks, fps):
-    # Calculate time between consecutive peaks (in seconds)
-    peak_intervals = np.diff(peaks)/fps
-    # Calculate heart rate (beats per minute)
-    heart_rate = 60 / np.mean(peak_intervals)
-    return heart_rate
-
-fps=0
-# Open a video file
-video_path = 'videos/real/vid.avi'
+# Read video from file
+video_path = "videos/fake/brad.mp4"
 cap = cv2.VideoCapture(video_path)
-detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")
 
-left_cheek_indices = [0, 4, 29, 8]
-right_cheek_indices = [16, 12, 29, 8]
-left_cheek_pulses=np.empty([])
-right_cheek_pulses=np.empty([])
-forehead_pulses=np.empty([])
-
-# Check if the video is successfully opened
 if not cap.isOpened():
-    print("Error: Could not open video.")
+    print("Error opening video file")
     exit()
 
-while True:
-    # Read a frame from the video
-    ret, frame = cap.read()
+# Load the Haar cascade for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-    # If the frame is not read successfully, break the loop
+# Get video properties
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+# Allocate memory for storing video frames
+left_cheek_frames = []
+right_cheek_frames = []
+forehead_frames = []
+full_face_frames = []
+
+isWAndHObtained = False
+cheek_w, cheek_h = 0, 0
+forehead_h, forehead_w = 0, 0
+face_h, face_w = 0, 0
+
+# Read frames from video and detect face region
+while True:
+    ret, frame = cap.read()
     if not ret:
         break
-
-    # Check if the frame has 3 channels (R, G, B)
-    if frame.shape[-1] != 3:
-        raise ValueError("The frame should have 3 color channels (R, G, B)")
-
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    
+    if len(faces) > 0:
+        # Assume the first detected face is the region of interest
+        x, y, w, h = faces[0]
 
-    # Detect faces in the grayscale frame
-    faces = detector(gray)
+        # Define regions for left cheek, right cheek, and forehead
+        if not isWAndHObtained:
+            cheek_w = w // 4
+            cheek_h = h // 4
+            forehead_h = h // 5
+            forehead_w = w // 2
+            face_h, face_w = h, w
+            isWAndHObtained = True
 
-    for face in faces:
+        left_cheek = frame[y + h // 2:y + h // 2 + cheek_h, x:x + cheek_w]
+        right_cheek = frame[y + h // 2:y + h // 2 + cheek_h, x + w - cheek_w:x + w]
+        forehead = frame[y:y + forehead_h, x + w // 4:x + w // 4 + forehead_w]
+        full_face = frame[y:y + face_h, x:x + face_w]
 
-        x, y, w, h = face.left(), face.top(), face.width(), face.height()
-        cropped_frame = frame[y:y+h, x:x+w]  #face region cropped
-
-        # Extract R, G, B channels
-        B, G, R = cv2.split(cropped_frame)
-
-        # sampling_rate = 2*int(cap.get(cv2.CAP_PROP_FPS))
-        sampling_rate = int(cap.get(cv2.CAP_PROP_FPS))
-        fps=sampling_rate
-        # Apply the algorithm based on paper
-        pulse_signal = calculate_pulse_signal(R, G, B,sampling_rate)
-
-        #detecting roi--->left_cheek, right_cheek
-        landmarks = predictor(gray, face)
-
-        # Get the left and right cheek landmark points
-        left_cheek_points = [landmarks.part(i) for i in left_cheek_indices]
-        right_cheek_points = [landmarks.part(i) for i in right_cheek_indices]
-
-        #Adjusting parameters for left_cheek and right_cheek
-
-        left_cheek_x1 = min(p.x for p in left_cheek_points)
-        left_cheek_y1 = min(p.y for p in left_cheek_points)
-        left_cheek_x2 = max(p.x for p in left_cheek_points)
-        left_cheek_y2 = max(p.y for p in left_cheek_points)
-
-        if(left_cheek_x2-left_cheek_x1 > 25):
-            diff=left_cheek_x2-left_cheek_x1
-            left_cheek_x1+=diff//4
-            left_cheek_x2-=diff//3
-
-        if(left_cheek_y2-left_cheek_y1 > 25):
-            diff=left_cheek_y2-left_cheek_y1
-            left_cheek_y1+=diff//5
-            left_cheek_y2-=diff//2
-
-        right_cheek_x1 = min(p.x for p in right_cheek_points)
-        right_cheek_y1 = min(p.y for p in right_cheek_points)
-        right_cheek_x2 = max(p.x for p in right_cheek_points)
-        right_cheek_y2 = max(p.y for p in right_cheek_points)
-
-        if(right_cheek_x2-right_cheek_x1 > 25):
-            diff=right_cheek_x2-right_cheek_x1
-            right_cheek_x1+=diff//3
-            right_cheek_x2-=diff//4
-
-        if(right_cheek_y2-right_cheek_y1 > 25):
-            diff=right_cheek_y2-right_cheek_y1
-            right_cheek_y1+=diff//5
-            right_cheek_y2-=diff//2
-
-         # Identify forehead region based on landmarks
-        forehead_x1 = landmarks.part(19).x # Left eyebrow-x
-        forehead_x2 = landmarks.part(24).x  # Right eyebrow-x
-        forehead_y1 = landmarks.part(19).y # Left eyebrow-y
-        forehead_y2 = landmarks.part(24).y # Right eyebrow-y
-
-        left_cheek_x1 -= x
-        left_cheek_y1 -= y
-        left_cheek_x2 -= x
-        left_cheek_y2 -= y
-
-        right_cheek_x1 -= x
-        right_cheek_y1 -= y
-        right_cheek_x2 -= x
-        right_cheek_y2 -= y
-
-        forehead_x1-=x
-        forehead_y1-=y
-        forehead_x2-=x
-        forehead_y2-=y    
-        forehead_y1=0 #fixing the top for forehead
-
-        # Extract ROI frames from the cropped_frame 
-        left_cheek_frame = pulse_signal[left_cheek_y1:left_cheek_y2, left_cheek_x1:left_cheek_x2]
-        right_cheek_frame = pulse_signal[right_cheek_y1:right_cheek_y2, right_cheek_x1:right_cheek_x2]
-        forehead_frame = pulse_signal[forehead_y1:forehead_y2, forehead_x1:forehead_x2]
-
-		#pulse arrays
-        left_cheek_pulses = np.append(left_cheek_pulses,np.mean(left_cheek_frame))
-        right_cheek_pulses = np.append(right_cheek_pulses,np.mean(right_cheek_frame))
-        forehead_pulses = np.append(forehead_pulses, np.mean(forehead_frame))
-
-		# Calculate heart rate from peaks
-        #left cheek
-        peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate)        
-        heart_rate = calculate_heart_rate(peaks, sampling_rate)
-        if heart_rate is not np.nan:
-            print("left cheek: ",heart_rate)
-
-		#right cheek 
-        peaks2, _ = find_peaks(right_cheek_pulses,height=0.005,distance=sampling_rate)
-        heart_rate = calculate_heart_rate(peaks2, sampling_rate)
-        if heart_rate is not np.nan:
-            print("right cheek: ",heart_rate)
-
-        #forehead 
-        peaks3, _ = find_peaks(forehead_pulses,height=0.005,distance=sampling_rate)
-        heart_rate = calculate_heart_rate(peaks3, sampling_rate)
-        if heart_rate is not np.nan:
-            print("forehead: ",heart_rate)
-
-        #Bounding Boxes for ROI
-        cv2.rectangle(cropped_frame, (left_cheek_x1, left_cheek_y1), (left_cheek_x2, left_cheek_y2), (0, 255, 0), 2)  
-        cv2.rectangle(cropped_frame, (right_cheek_x1, right_cheek_y1), (right_cheek_x2, right_cheek_y2), (0, 0, 255), 2) 
-        cv2.rectangle(cropped_frame, (forehead_x1, forehead_y1), (forehead_x2, forehead_y2), (0, 0, 255), 2) 
-
-
-        #Displaying frames
-        cv2.imshow("Detecting Cheeks in Video", cropped_frame)
-        cv2.imshow("Pulse Signal", pulse_signal)
-        cv2.imshow("left cheek", left_cheek_frame)
-        cv2.imshow("right cheek", right_cheek_frame)
-        cv2.imshow("fore head", forehead_frame)       
-
-        # Break the loop if the 'q' key is pressed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        left_cheek_frames.append(left_cheek)
+        right_cheek_frames.append(right_cheek)
+        forehead_frames.append(forehead)
+        full_face_frames.append(full_face)
 
 cap.release()
 cv2.destroyAllWindows()
-#plotting the hear rate
-#left cheek
-plt.plot(left_cheek_pulses)
-print(len(left_cheek_pulses),(len(left_cheek_pulses)//fps))
-plt.xlabel('time')
-plt.ylabel('Mean Intensity of ROI')
-plt.ylim(0, 0.02)
-plt.xlim(0,(len(left_cheek_pulses)//fps))
-plt.xticks(range(0, (len(left_cheek_pulses)//fps)+1, 10))
-plt.title('Mean Intensity of rPPG Signal')
-plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_leftcheek_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
-plt.close()
 
-#right cheek
-plt.plot(right_cheek_pulses)
-print(len(right_cheek_pulses), len(right_cheek_pulses)//fps)
-plt.xlabel('time')
-plt.ylabel('Mean Intensity of ROI')
-plt.ylim(0, 0.02)
-plt.xlim(0,(len(right_cheek_pulses)//fps))
-plt.xticks(range(0, (len(right_cheek_pulses)//fps)+1, 10))
-plt.title('Mean Intensity of rPPG Signal')
-plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_rightcheek_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
-plt.close()
+# Function to process each region and estimate heart rate
+def process_region(region_frames, region_name):
+    # Convert frames list to a numpy array
+    video = np.array(region_frames)
 
-#forehead
-plt.plot(forehead_pulses)
-plt.xlabel('time')
-plt.ylabel('Mean Intensity of ROI')
-plt.ylim(0, 0.02)
-plt.xlim(0,(len(forehead_pulses)//fps))
-print((len(forehead_pulses)//fps))
-plt.xticks(range(0, (len(forehead_pulses)//fps)+1, 10))
-plt.title('Mean Intensity of rPPG Signal')
-plt.savefig('plots/' + '_'.join(video_path.split('/')[1:])+ '_forehead_' + ''.join(str(datetime.now()).split(' ')[1].split(':')).split('.')[0] + '.png')
-plt.close()
+    # Normalize the video
+    for windowSize in windowSizes:
+        normalized_with_windowSize = normalize_video(video.copy(), windowSize)
+
+        Rn = normalized_with_windowSize[:, :, :, 0]
+        Gn = normalized_with_windowSize[:, :, :, 1]
+        Bn = normalized_with_windowSize[:, :, :, 2]
+
+        Xs = 3 * Rn - 2 * Gn
+        Ys = 1.5 * Rn + Gn - 1.5 * Bn
+
+        # Apply bandpass filter
+        try:
+            Rf = bandpass_filter(Rn, lowcut, highcut, fs)
+            Gf = bandpass_filter(Gn, lowcut, highcut, fs)
+            Bf = bandpass_filter(Bn, lowcut, highcut, fs)
+            Xf = bandpass_filter(Xs, lowcut, highcut, fs)
+            Yf = bandpass_filter(Ys, lowcut, highcut, fs)
+
+            alpha = np.std(Xf) / np.std(Yf)
+
+            signal = np.empty_like(Rf)
+            for i, frame in enumerate(signal):
+                signal[i] = 3 * (1 - (alpha / 2)) * Rf[i] - 2 * (1 + (alpha / 2)) * Gf[i] + ((3 * alpha) / 2) * Bf[i]
+            
+            bpm = hearrate_detected(signal, fps)
+            print(f"Estimated Heart Rate from {region_name}: {bpm} BPM")
+            
+            # Plot the signal
+            time_series = np.mean(signal, axis=(1, 2))
+            plt.plot(time_series, label=f'{region_name} Pulse Signal')
+            plt.title(f'{region_name} Pulse Signal over Time')
+            plt.xlabel('Time')
+            plt.ylabel('Intensity')
+            plt.legend()
+            plt.text(0.05, 0.95, f'Estimated Heart Rate: {bpm:.2f} BPM', horizontalalignment='left', verticalalignment='top', transform=plt.gca().transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
+            plt.savefig(f'plots/{region_name}_pulse_signal.png')
+            plt.clf()
+
+            return bpm, signal
+        except ValueError as e:
+            print(f"Error processing {region_name}: {e}")
+            return None, None
+
+# Process each region and get heart rate
+left_cheek_bpm, left_cheek_signal = process_region(left_cheek_frames, 'Left Cheek')
+right_cheek_bpm, right_cheek_signal = process_region(right_cheek_frames, 'Right Cheek')
+forehead_bpm, forehead_signal = process_region(forehead_frames, 'Forehead')
+full_face_bpm, full_face_signal = process_region(full_face_frames, 'Full Face')
+
+# Superimpose all plots in a single plot
+plt.figure(figsize=(10, 6))
+if left_cheek_signal is not None:
+    plt.plot(np.mean(left_cheek_signal, axis=(1, 2)), label='Left Cheek Pulse Signal')
+if right_cheek_signal is not None:
+    plt.plot(np.mean(right_cheek_signal, axis=(1, 2)), label='Right Cheek Pulse Signal')
+if forehead_signal is not None:
+    plt.plot(np.mean(forehead_signal, axis=(1, 2)), label='Forehead Pulse Signal')
+if full_face_signal is not None:
+    plt.plot(np.mean(full_face_signal, axis=(1, 2)), label='Full Face Pulse Signal')
+plt.title('Superimposed Pulse Signals')
+plt.xlabel('Time')
+plt.ylabel('Intensity')
+plt.legend()
+plt.savefig('plots/superimposed_pulse_signals.png')

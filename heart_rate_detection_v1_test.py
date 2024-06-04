@@ -69,7 +69,7 @@ def hearrate_detected(signal, fps):
     return bpm
 
 # Read video from file
-video_path = "videos/real/vid.avi"
+video_path = "videos/fake/vid.mp4"
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
@@ -167,7 +167,7 @@ def process_region(region_frames, region_name):
         plt.ylabel('Intensity')
         plt.legend()
         plt.text(0.05, 0.95, f'Estimated Heart Rate: {bpm:.2f} BPM', horizontalalignment='left', verticalalignment='top', transform=plt.gca().transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
-        plt.savefig(f'{region_name}_pulse_signal.png')
+        plt.savefig(f'plots/{region_name}_pulse_signal.png')
         plt.clf()
         
         return bpm, signal
@@ -177,3 +177,15 @@ left_cheek_bpm, left_cheek_signal = process_region(left_cheek_frames, 'Left Chee
 right_cheek_bpm, right_cheek_signal = process_region(right_cheek_frames, 'Right Cheek')
 forehead_bpm, forehead_signal = process_region(forehead_frames, 'Forehead')
 full_face_bpm, full_face_signal = process_region(full_face_frames, 'Full Face')
+
+# Superimpose all plots in a single plot
+plt.figure(figsize=(10, 6))
+plt.plot(np.mean(left_cheek_signal, axis=(1, 2)), label='Left Cheek Pulse Signal')
+plt.plot(np.mean(right_cheek_signal, axis=(1, 2)), label='Right Cheek Pulse Signal')
+plt.plot(np.mean(forehead_signal, axis=(1, 2)), label='Forehead Pulse Signal')
+plt.plot(np.mean(full_face_signal, axis=(1, 2)), label='Full Face Pulse Signal')
+plt.title('Superimposed Pulse Signals')
+plt.xlabel('Time')
+plt.ylabel('Intensity')
+plt.legend()
+plt.savefig('plots/superimposed_pulse_signals.png')
