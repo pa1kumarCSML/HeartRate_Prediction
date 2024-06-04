@@ -190,13 +190,13 @@ while True:
 
 		# Calculate heart rate from peaks
         #left cheek
-        peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate/2)        
+        peaks, _ = find_peaks(left_cheek_pulses,height=0.005,distance=sampling_rate)        
         heart_rate = calculate_heart_rate(peaks, sampling_rate)
         if heart_rate is not np.nan:
             print("left cheek: ",heart_rate)
 
 		#right cheek 
-        peaks2, _ = find_peaks(right_cheek_pulses,height=0.005,distance=sampling_rate/2)
+        peaks2, _ = find_peaks(right_cheek_pulses,height=0.005,distance=sampling_rate)
         heart_rate = calculate_heart_rate(peaks2, sampling_rate)
         if heart_rate is not np.nan:
             print("right cheek: ",heart_rate)
