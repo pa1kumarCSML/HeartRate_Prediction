@@ -7,7 +7,7 @@ predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.d
 
 # Open video file
 video_path= 'videos/real/jenny.mp4'
-cap = cv2.VideoCapture(video_path)
+cap = cv2.VideoCapture(0)
 
 # Process each frame in the video
 while cap.isOpened():
@@ -33,7 +33,7 @@ while cap.isOpened():
         forehead_y2 = landmarks.part(24).y # Right eyebrow-y
         
        
-        height=int((forehead_x2 - forehead_x1)*0.7)
+        height=int((forehead_x2 - forehead_x1)*0.5)
         # Draw rectangle with increased breadth
         cv2.rectangle(frame, (forehead_x1, forehead_y1-height), (forehead_x2, forehead_y2), (0, 255, 0), 2)
         
