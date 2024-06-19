@@ -7,7 +7,7 @@ predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.d
 
 # Open video file
 video_path= 'videos/real/jenny.mp4'
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(video_path)
 
 # Process each frame in the video
 while cap.isOpened():
@@ -35,7 +35,7 @@ while cap.isOpened():
        
         height=int((forehead_x2 - forehead_x1)*0.5)
         # Draw rectangle with increased breadth
-        cv2.rectangle(frame, (forehead_x1, forehead_y1-height), (forehead_x2, forehead_y2), (0, 255, 0), 2)
+        # cv2.rectangle(frame, (forehead_x1, forehead_y1-height), (forehead_x2, forehead_y2), (0, 255, 0), 2)
         
         # Draw facial landmarks with numbers
         for i in range(0, 68):

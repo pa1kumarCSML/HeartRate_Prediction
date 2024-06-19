@@ -70,7 +70,7 @@ def calculate_heart_rate(peaks, fps):
 
 fps=0
 # Open a video file
-video_path = 'videos/real/vid.avi'
+video_path = 'videos/real/jenny.mp4'
 cap = cv2.VideoCapture(video_path)
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor("dlib_files/shape_predictor_68_face_landmarks.dat")

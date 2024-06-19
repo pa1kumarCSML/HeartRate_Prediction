@@ -29,12 +29,6 @@ def bandpass_filter(signal, low_cutoff, high_cutoff, sampling_rate):
     filtered_signal = lfilter(b, a, signal)
     return filtered_signal
 
-
-def normalizedSignal(channel):
-    mini = np.min(channel)
-    normal_signal = (channel - mini)/(np.max(channel) - mini)
-    return normal_signal
-
 def calculate_pulse_signal(R, G, B,sampling_rate):
     #pure chrom based
 

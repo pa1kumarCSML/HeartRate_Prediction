@@ -76,7 +76,7 @@ def hearrate_detected(signal, fps):
 
 
 # Read video from file
-video_path = "videos/real/vid.avi"
+video_path = "videos/real/jenny.mp4"
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
